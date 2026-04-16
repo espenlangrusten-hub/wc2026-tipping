@@ -1,8 +1,5 @@
 /**
- * config.js — Supabase configuration
- *
- * FILL IN your Supabase project URL and anon key.
- * Find these in: Supabase Dashboard → Settings → API
+ * config.js — Supabase configuration (fixed)
  */
 
 const SUPABASE_URL  = 'https://wnhwtzokykwxgmsqsisf.supabase.co';
@@ -13,135 +10,121 @@ const CONFIG = {
   LEADERBOARD_REFRESH_SEC: 300,
 };
 
-// Supabase client (loaded via CDN in HTML)
-let supabase;
+// Use a different name to avoid shadowing window.supabase from CDN
+var db = null;
 
 function initSupabase() {
-  if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  } else {
-    // Fallback: supabaseClient from older CDN naming
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  try {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    console.log('Supabase connected');
+  } catch (err) {
+    console.error('Supabase init failed:', err);
   }
-  return supabase;
+  return db;
 }
 
-// ── API helpers wrapping Supabase ──────────────────────────────
-
-const API = {
-  // Public reads — direct table queries via anon key + RLS
-  async getTeams() {
-    const { data, error } = await supabase.from('teams').select('*').order('group_code').order('team_code');
-    if (error) throw new Error(error.message);
-    return data;
+// API helpers
+var API = {
+  getTeams: async function() {
+    var r = await db.from('teams').select('*').order('group_code').order('team_code');
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
   },
 
-  async getTeamsByGroup() {
-    const teams = await this.getTeams();
-    const groups = {};
-    for (const t of teams) {
+  getTeamsByGroup: async function() {
+    var teams = await this.getTeams();
+    var groups = {};
+    for (var i = 0; i < teams.length; i++) {
+      var t = teams[i];
       if (!groups[t.group_code]) groups[t.group_code] = [];
       groups[t.group_code].push(t);
     }
     return groups;
   },
 
-  async getQuestions() {
-    const { data, error } = await supabase.from('extra_questions').select('*').order('sort_order');
-    if (error) throw new Error(error.message);
-    return data;
+  getQuestions: async function() {
+    var r = await db.from('extra_questions').select('*').order('sort_order');
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
   },
 
-  async getConfig() {
-    const { data, error } = await supabase.rpc('get_public_config');
-    if (error) throw new Error(error.message);
-    return data;
+  getConfig: async function() {
+    var r = await db.rpc('get_public_config');
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
   },
 
-  async getLeaderboard() {
-    const { data, error } = await supabase.from('scores').select('*').order('rank');
-    if (error) throw new Error(error.message);
-    return data;
+  getLeaderboard: async function() {
+    var r = await db.from('scores').select('*').order('rank');
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
   },
 
-  async getScoringConfig() {
-    const { data, error } = await supabase.from('scoring_config').select('*');
-    if (error) throw new Error(error.message);
-    const config = {};
-    for (const r of data) {
-      let v = r.value;
+  getScoringConfig: async function() {
+    var r = await db.from('scoring_config').select('*');
+    if (r.error) throw new Error(r.error.message);
+    var config = {};
+    for (var i = 0; i < r.data.length; i++) {
+      var row = r.data[i];
+      var v = row.value;
       if (v === 'true') v = true;
       else if (v === 'false') v = false;
       else if (!isNaN(Number(v)) && v !== '') v = Number(v);
-      config[r.key] = v;
+      config[row.key] = v;
     }
     return config;
   },
 
-  // Submit entry — calls database function
-  async submitEntry(payload) {
-    const { data, error } = await supabase.rpc('submit_entry', { data: payload });
-    if (error) throw new Error(error.message);
-    return data;
+  submitEntry: async function(payload) {
+    var r = await db.rpc('submit_entry', { data: payload });
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
   },
 
-  // Admin: verify password
-  async verifyAdmin(pwd) {
-    const { data, error } = await supabase.rpc('verify_admin', { pwd });
-    if (error) throw new Error(error.message);
-    return data === true;
+  verifyAdmin: async function(pwd) {
+    var r = await db.rpc('verify_admin', { pwd: pwd });
+    if (r.error) throw new Error(r.error.message);
+    return r.data === true;
   },
 
-  // Admin: get all scoring data
-  async adminGetScoringData(pwd) {
-    const { data, error } = await supabase.rpc('admin_get_scoring_data', { pwd });
-    if (error) throw new Error(error.message);
-    return data;
+  adminGetScoringData: async function(pwd) {
+    var r = await db.rpc('admin_get_scoring_data', { pwd: pwd });
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
   },
 
-  // Admin: write computed scores
-  async adminWriteScores(pwd, scoresData) {
-    const { data, error } = await supabase.rpc('admin_write_scores', {
-      pwd, scores_data: scoresData,
+  adminWriteScores: async function(pwd, scoresData) {
+    var r = await db.rpc('admin_write_scores', { pwd: pwd, scores_data: scoresData });
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
+  },
+
+  adminUpdateGroupResult: async function(pwd, matchId, homeScore, awayScore) {
+    var r = await db.rpc('admin_update_group_result', {
+      pwd: pwd, p_match_id: matchId, p_home_score: homeScore, p_away_score: awayScore
     });
-    if (error) throw new Error(error.message);
-    return data;
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
   },
 
-  // Admin: update group match result
-  async adminUpdateGroupResult(pwd, matchId, homeScore, awayScore) {
-    const { data, error } = await supabase.rpc('admin_update_group_result', {
-      pwd, p_match_id: matchId, p_home_score: homeScore, p_away_score: awayScore,
+  adminUpdateKOResult: async function(pwd, matchId, homeScore, awayScore, winner, decidedIn) {
+    var r = await db.rpc('admin_update_ko_result', {
+      pwd: pwd, p_match_id: matchId, p_home_score: homeScore, p_away_score: awayScore,
+      p_winner: winner, p_decided_in: decidedIn
     });
-    if (error) throw new Error(error.message);
-    return data;
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
   },
 
-  // Admin: update knockout result
-  async adminUpdateKOResult(pwd, matchId, homeScore, awayScore, winner, decidedIn) {
-    const { data, error } = await supabase.rpc('admin_update_ko_result', {
-      pwd, p_match_id: matchId, p_home_score: homeScore, p_away_score: awayScore,
-      p_winner: winner, p_decided_in: decidedIn,
-    });
-    if (error) throw new Error(error.message);
-    return data;
+  adminUpdateSetting: async function(pwd, key, value) {
+    var r = await db.rpc('admin_update_setting', { pwd: pwd, p_key: key, p_value: value });
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
   },
 
-  // Admin: update setting
-  async adminUpdateSetting(pwd, key, value) {
-    const { data, error } = await supabase.rpc('admin_update_setting', {
-      pwd, p_key: key, p_value: value,
-    });
-    if (error) throw new Error(error.message);
-    return data;
-  },
-
-  // Admin: update official answer
-  async adminUpdateAnswer(pwd, qId, answer) {
-    const { data, error } = await supabase.rpc('admin_update_answer', {
-      pwd, p_q_id: qId, p_answer: answer,
-    });
-    if (error) throw new Error(error.message);
-    return data;
-  },
+  adminUpdateAnswer: async function(pwd, qId, answer) {
+    var r = await db.rpc('admin_update_answer', { pwd: pwd, p_q_id: qId, p_answer: answer });
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
+  }
 };
