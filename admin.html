@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VM 2026 — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0a0e1a; --cream: #f5f1e8; --paper: #fbfaf5;
+  --accent: #ff4d2d; --muted: #6b7280; --line: #e5e1d5;
+  --ok: #22c55e; --err: #ef4444; --warn: #f59e0b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', sans-serif; background: var(--paper); color: var(--ink);
+  line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 1000px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+header { border-bottom: 2px solid var(--ink); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+.brand {
+  font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800;
+  font-size: 2rem; line-height: 0.95; letter-spacing: -0.03em;
+}
+.brand-badge {
+  display: inline-block; background: var(--accent); color: white;
+  font-size: 0.625rem; padding: 2px 6px; border-radius: 3px;
+  vertical-align: middle; margin-left: 0.5rem; font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
+}
+
+/* Login */
+.login-box {
+  max-width: 380px; margin: 4rem auto; background: white;
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 2rem;
+}
+.login-box h2 {
+  font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800;
+  margin-bottom: 1rem;
+}
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; border-bottom: 2px solid var(--line); flex-wrap: wrap; }
+.tab {
+  padding: 0.625rem 0.875rem; border: none; background: none;
+  font-family: inherit; font-size: 0.875rem; font-weight: 600;
+  cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+.tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* Panels */
+.panel {
+  background: white; border: 1.5px solid var(--line);
+  border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;
+}
+.panel h3 {
+  font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800;
+  font-size: 1.25rem; margin-bottom: 0.5rem; letter-spacing: -0.01em;
+}
+.panel-desc { color: var(--muted); font-size: 0.875rem; margin-bottom: 1rem; }
+
+/* Forms & buttons */
+input, select, textarea {
+  font-family: inherit; font-size: 0.9375rem;
+  padding: 0.5rem 0.625rem; border: 1.5px solid var(--line);
+  border-radius: 5px; background: white; width: 100%;
+}
+input:focus, select:focus { outline: none; border-color: var(--ink); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.625rem 1rem; border: none; border-radius: 6px;
+  font-family: inherit; font-weight: 600; cursor: pointer;
+  font-size: 0.875rem; transition: transform 0.1s;
+}
+.btn:hover { transform: scale(1.02); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-primary { background: var(--ink); color: var(--cream); }
+.btn-accent { background: var(--accent); color: white; }
+.btn-danger { background: var(--err); color: white; }
+.btn-ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+
+/* Match result grid */
+.match-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 60px 20px 60px 1fr 80px;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.match-row:last-child { border-bottom: none; }
+.match-id-cell { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); }
+.match-team-cell { font-size: 0.875rem; }
+.match-score {
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+}
+.match-vs { text-align: center; color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; }
+.match-status {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted);
+}
+
+/* Table */
+table.admin-table {
+  width: 100%; border-collapse: collapse; font-size: 0.875rem;
+}
+table.admin-table th, table.admin-table td {
+  padding: 0.5rem 0.625rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+table.admin-table th {
+  background: var(--paper);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+table.admin-table input, table.admin-table select { padding: 0.375rem 0.5rem; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 1rem; right: 1rem;
+  padding: 0.75rem 1rem; border-radius: 6px;
+  background: var(--ink); color: var(--cream);
+  font-size: 0.875rem; z-index: 100;
+  animation: slideIn 0.2s;
+}
+.toast.err { background: var(--err); }
+.toast.ok { background: var(--ok); }
+@keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.hidden { display: none !important; }
+.loading {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid currentColor; border-top-color: transparent;
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { padding: 2rem; text-align: center; color: var(--muted); }
+
+.recalc-card {
+  background: var(--ink); color: var(--cream);
+  border-radius: 8px; padding: 1.5rem; text-align: center;
+}
+.recalc-card .btn { font-size: 1rem; padding: 0.875rem 1.5rem; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="brand">VM<span style="color:var(--accent);">26</span> Admin <span class="brand-badge">RESTRICTED</span></div>
+  </header>
+
+  <!-- Login -->
+  <div id="login" class="login-box">
+    <h2>Admin-innlogging</h2>
+    <p style="color:var(--muted); font-size:0.875rem; margin-bottom:1rem;">
+      Oppgi admin-passord for å fortsette.
+    </p>
+    <input type="password" id="pw-input" placeholder="Passord" autocomplete="current-password">
+    <button class="btn btn-primary" style="margin-top:1rem; width:100%;" onclick="attemptLogin()">Logg inn</button>
+    <div id="pw-error" style="color:var(--err); font-size:0.8125rem; margin-top:0.75rem;"></div>
+  </div>
+
+  <!-- Admin panel (hidden until login) -->
+  <div id="panel" class="hidden">
+    <div class="tabs" id="tabs"></div>
+    <div id="tab-content"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>initSupabase();</script>
+<script src="tournament-data.js"></script>
+<script src="scoring.js"></script>
+<script src="tournament.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
