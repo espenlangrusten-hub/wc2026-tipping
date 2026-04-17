@@ -63,27 +63,97 @@
     });
   }
 
+  // ── Fuzzy matching helpers ───────────────────────────────────
+  function levenshtein(a, b) {
+    a = a.toLowerCase(); b = b.toLowerCase();
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    var matrix = [];
+    for (var i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (var j = 0; j <= a.length; j++) matrix[0][j] = j;
+    for (var i = 1; i <= b.length; i++) {
+      for (var j = 1; j <= a.length; j++) {
+        var cost = b.charAt(i-1) === a.charAt(j-1) ? 0 : 1;
+        matrix[i][j] = Math.min(matrix[i-1][j]+1, matrix[i][j-1]+1, matrix[i-1][j-1]+cost);
+      }
+    }
+    return matrix[b.length][a.length];
+  }
+
+  function clusterNames(names) {
+    // Group similar names (Levenshtein ≤ 2) — pick the most common spelling as canonical
+    var clusters = []; // [{canonical, variants: Set}]
+    var sorted = Array.from(names).sort();
+    for (var i = 0; i < sorted.length; i++) {
+      var name = sorted[i];
+      var found = false;
+      for (var c = 0; c < clusters.length; c++) {
+        if (levenshtein(name, clusters[c].canonical) <= 2) {
+          clusters[c].variants.add(name);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        clusters.push({ canonical: name, variants: new Set([name]) });
+      }
+    }
+    // Pick most common spelling as canonical
+    return clusters.map(function(c) {
+      var arr = Array.from(c.variants);
+      return { display: arr.sort()[0], variants: c.variants };
+    });
+  }
+
   function populateFilters() {
-    const companies = new Set();
-    const depts = new Set();
-    for (const p of state.raw) {
+    var companies = new Set();
+    var depts = new Set();
+    for (var i = 0; i < state.raw.length; i++) {
+      var p = state.raw[i];
       if (p.company) companies.add(p.company);
       if (p.department) depts.add(p.department);
     }
-    const cEl = document.getElementById('filter-company');
-    const dEl = document.getElementById('filter-dept');
-    const cur_c = cEl.value; const cur_d = dEl.value;
-    cEl.innerHTML = '<option value="">Alle firma</option>' +
-      Array.from(companies).sort().map(c => `<option ${c===cur_c?'selected':''}>${escapeHTML(c)}</option>`).join('');
+
+    state.companyClusters = clusterNames(companies);
+    state.deptClusters = clusterNames(depts);
+
+    var cEl = document.getElementById('filter-company');
+    var dEl = document.getElementById('filter-dept');
+    var cur_c = cEl.value; var cur_d = dEl.value;
+    cEl.innerHTML = '<option value="">Alle arbeidssteder</option>' +
+      state.companyClusters.map(function(c) {
+        return '<option value="' + escapeHTML(c.display) + '" ' + (c.display===cur_c?'selected':'') + '>' + escapeHTML(c.display) +
+          (c.variants.size > 1 ? ' (' + c.variants.size + ')' : '') + '</option>';
+      }).join('');
     dEl.innerHTML = '<option value="">Alle avdelinger</option>' +
-      Array.from(depts).sort().map(d => `<option ${d===cur_d?'selected':''}>${escapeHTML(d)}</option>`).join('');
+      state.deptClusters.map(function(c) {
+        return '<option value="' + escapeHTML(c.display) + '" ' + (c.display===cur_d?'selected':'') + '>' + escapeHTML(c.display) +
+          (c.variants.size > 1 ? ' (' + c.variants.size + ')' : '') + '</option>';
+      }).join('');
   }
 
   function filtered() {
-    return state.raw.filter(p => {
+    return state.raw.filter(function(p) {
       if (state.search && !String(p.full_name).toLowerCase().includes(state.search)) return false;
-      if (state.company && p.company !== state.company) return false;
-      if (state.dept && p.department !== state.dept) return false;
+      if (state.company) {
+        var match = false;
+        for (var i = 0; i < state.companyClusters.length; i++) {
+          if (state.companyClusters[i].display === state.company && state.companyClusters[i].variants.has(p.company)) {
+            match = true; break;
+          }
+        }
+        if (!match) return false;
+      }
+      if (state.dept) {
+        var match2 = false;
+        for (var j = 0; j < state.deptClusters.length; j++) {
+          if (state.deptClusters[j].display === state.dept && state.deptClusters[j].variants.has(p.department)) {
+            match2 = true; break;
+          }
+        }
+        if (!match2) return false;
+      }
       return true;
     });
   }
