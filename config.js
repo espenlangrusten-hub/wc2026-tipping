@@ -126,5 +126,32 @@ var API = {
     var r = await db.rpc('admin_update_answer', { pwd: pwd, p_q_id: qId, p_answer: answer });
     if (r.error) throw new Error(r.error.message);
     return r.data;
-  }
+  },
+
+  adminListParticipants: async function(pwd) {
+    var r = await db.rpc('admin_list_participants', { pwd: pwd });
+    if (r.error) throw new Error(r.error.message);
+    return r.data || [];
+  },
+
+  adminDeleteParticipant: async function(pwd, participantId) {
+    var r = await db.rpc('admin_delete_participant', { pwd: pwd, p_participant_id: participantId });
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
+  },
+
+  adminUpdateParticipant: async function(pwd, participantId, name, company, dept) {
+    var r = await db.rpc('admin_update_participant', {
+      pwd: pwd, p_participant_id: participantId,
+      p_full_name: name, p_company: company, p_department: dept
+    });
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
+  },
+
+  getAllMatches: async function() {
+    var g = await db.from('results_group').select('*').order('match_id');
+    var k = await db.from('results_knockout').select('*').order('match_id');
+    return { group: g.data || [], knockout: k.data || [] };
+  },
 };
