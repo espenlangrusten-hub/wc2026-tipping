@@ -218,20 +218,20 @@
       data: {
         labels: top10.map(p => shortName(p.full_name)),
         datasets: [
-          { label: 'Gruppe',    data: top10.map(p => Number(p.group_pts) || 0), backgroundColor: '#0a0e1a' },
-          { label: '3. plass',  data: top10.map(p => Number(p.third_pts) || 0), backgroundColor: '#374151' },
-          { label: 'R32/R16',   data: top10.map(p => (Number(p.r32_pts)||0) + (Number(p.r16_pts)||0)), backgroundColor: '#6b7280' },
-          { label: 'QF/SF',     data: top10.map(p => (Number(p.qf_pts)||0) + (Number(p.sf_pts)||0)), backgroundColor: '#9ca3af' },
-          { label: 'Final/W',   data: top10.map(p => (Number(p.f_pts)||0) + (Number(p.w_pts)||0)), backgroundColor: '#ff4d2d' },
-          { label: 'Extras',    data: top10.map(p => Number(p.extras_pts) || 0), backgroundColor: '#f59e0b' },
+          { label: 'Gruppe',    data: top10.map(p => Number(p.group_pts) || 0), backgroundColor: '#d4a843' },
+          { label: '3. plass',  data: top10.map(p => Number(p.third_pts) || 0), backgroundColor: '#a78832' },
+          { label: 'R32/R16',   data: top10.map(p => (Number(p.r32_pts)||0) + (Number(p.r16_pts)||0)), backgroundColor: '#6b7a8d' },
+          { label: 'QF/SF',     data: top10.map(p => (Number(p.qf_pts)||0) + (Number(p.sf_pts)||0)), backgroundColor: '#94a3b8' },
+          { label: 'Final/W',   data: top10.map(p => (Number(p.f_pts)||0) + (Number(p.w_pts)||0)), backgroundColor: '#e8443a' },
+          { label: 'Extras',    data: top10.map(p => Number(p.extras_pts) || 0), backgroundColor: '#3ecf72' },
         ],
       },
       options: {
         indexAxis: 'y',
-        plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
+        plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, color: '#6b7a8d' } } },
         scales: {
-          x: { stacked: true, ticks: { font: { family: 'JetBrains Mono', size: 10 } } },
-          y: { stacked: true, ticks: { font: { size: 11 } } },
+          x: { stacked: true, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b7a8d' }, grid: { color: '#232a38' } },
+          y: { stacked: true, ticks: { font: { size: 11 }, color: '#c0b9a8' }, grid: { color: '#232a38' } },
         },
       },
     });
@@ -315,14 +315,15 @@
         data: { labels: uniqueLabels, datasets },
         options: {
           plugins: {
-            legend: { position: 'bottom', labels: { font: { size: 10 }, usePointStyle: true } },
+            legend: { position: 'bottom', labels: { font: { size: 10 }, usePointStyle: true, color: '#6b7a8d' } },
           },
           scales: {
-            x: { ticks: { font: { family: 'JetBrains Mono', size: 10 } } },
+            x: { ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b7a8d' }, grid: { color: '#232a38' } },
             y: {
               beginAtZero: true,
-              ticks: { font: { family: 'JetBrains Mono', size: 10 } },
-              title: { display: true, text: 'Poeng', font: { size: 10 } },
+              ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#6b7a8d' },
+              title: { display: true, text: 'Poeng', font: { size: 10 }, color: '#6b7a8d' },
+              grid: { color: '#232a38' },
             },
           },
         },
@@ -357,7 +358,7 @@
       <div style="color:var(--muted); font-size:0.875rem; margin-bottom:1rem;">
         ${escapeHTML([p.company, p.department].filter(Boolean).join(' · '))}
       </div>
-      <div style="display:flex; gap:2rem; padding:1rem; background:white; border:1.5px solid var(--line); border-radius:8px; margin-bottom:1rem;">
+      <div style="display:flex; gap:2rem; padding:1rem; background:#1a1f2e; border:1px solid var(--line); border-radius:8px; margin-bottom:1rem;">
         <div>
           <div style="font-family:'JetBrains Mono',monospace; font-size:0.6875rem; text-transform:uppercase; color:var(--muted);">Plassering</div>
           <div style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:2rem;">#${p.rank}</div>
@@ -379,7 +380,7 @@
           </div>
         `).join('')}
       </div>
-      <button onclick="closeModal()" style="margin-top:1.5rem; background:var(--ink); color:var(--cream); border:none; padding:0.625rem 1rem; border-radius:6px; font-family:inherit; font-weight:600; cursor:pointer;">Lukk</button>
+      <button onclick="closeModal()" style="margin-top:1.5rem; background:var(--accent); color:#080a10; border:none; padding:0.625rem 1rem; border-radius:6px; font-family:inherit; font-weight:600; cursor:pointer;">Lukk</button>
     `;
     document.getElementById('modal').classList.add('open');
   };
