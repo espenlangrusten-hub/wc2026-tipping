@@ -81,7 +81,7 @@
 
   function filtered() {
     return state.raw.filter(p => {
-      if (state.search && !String(p.name).toLowerCase().includes(state.search)) return false;
+      if (state.search && !String(p.full_name).toLowerCase().includes(state.search)) return false;
       if (state.company && p.company !== state.company) return false;
       if (state.dept && p.department !== state.dept) return false;
       return true;
@@ -111,14 +111,14 @@
       body.innerHTML = sorted.map((p, i) => {
         const rank = i + 1;
         const rankClass = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
-        const koPts = (Number(p.R32_pts)||0) + (Number(p.R16_pts)||0) + (Number(p.QF_pts)||0)
-                    + (Number(p.SF_pts)||0) + (Number(p.F_pts)||0) + (Number(p.W_pts)||0)
+        const koPts = (Number(p.r32_pts)||0) + (Number(p.r16_pts)||0) + (Number(p.qf_pts)||0)
+                    + (Number(p.sf_pts)||0) + (Number(p.f_pts)||0) + (Number(p.w_pts)||0)
                     + (Number(p.third_pts)||0);
         return `
           <tr onclick="showDetail('${p.participant_id}')">
             <td class="rank ${rankClass}">${rank}</td>
             <td>
-              <div class="participant-name">${escapeHTML(p.name)}</div>
+              <div class="participant-name">${escapeHTML(p.full_name)}</div>
               <div class="participant-meta">${escapeHTML([p.company, p.department].filter(Boolean).join(' · '))}</div>
             </td>
             <td class="num">${p.group_pts || 0}</td>
@@ -136,30 +136,8 @@
   function renderCharts(sorted) {
     const scoreField = state.view === 'total' ? 'total' : 'total_no_extras';
 
-    // Distribution histogram
-    const values = sorted.map(p => Number(p[scoreField]) || 0);
-    const buckets = buildHistogram(values, 10);
-    const distCtx = document.getElementById('chart-distribution').getContext('2d');
-    if (state.charts.dist) state.charts.dist.destroy();
-    state.charts.dist = new Chart(distCtx, {
-      type: 'bar',
-      data: {
-        labels: buckets.labels,
-        datasets: [{
-          label: 'Deltakere',
-          data: buckets.counts,
-          backgroundColor: '#0a0e1a',
-          borderRadius: 2,
-        }],
-      },
-      options: {
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { font: { family: 'JetBrains Mono', size: 10 } } },
-          y: { ticks: { font: { family: 'JetBrains Mono', size: 10 } } },
-        },
-      },
-    });
+    // Top 5 progression chart (from scores_history)
+    renderProgressionChart(sorted);
 
     // Top 10 — stacked bar by category
     const top10 = sorted.slice(0, 10);
@@ -168,13 +146,13 @@
     state.charts.cat = new Chart(catCtx, {
       type: 'bar',
       data: {
-        labels: top10.map(p => shortName(p.name)),
+        labels: top10.map(p => shortName(p.full_name)),
         datasets: [
           { label: 'Gruppe',    data: top10.map(p => Number(p.group_pts) || 0), backgroundColor: '#0a0e1a' },
           { label: '3. plass',  data: top10.map(p => Number(p.third_pts) || 0), backgroundColor: '#374151' },
-          { label: 'R32/R16',   data: top10.map(p => (Number(p.R32_pts)||0) + (Number(p.R16_pts)||0)), backgroundColor: '#6b7280' },
-          { label: 'QF/SF',     data: top10.map(p => (Number(p.QF_pts)||0) + (Number(p.SF_pts)||0)), backgroundColor: '#9ca3af' },
-          { label: 'Final/W',   data: top10.map(p => (Number(p.F_pts)||0) + (Number(p.W_pts)||0)), backgroundColor: '#ff4d2d' },
+          { label: 'R32/R16',   data: top10.map(p => (Number(p.r32_pts)||0) + (Number(p.r16_pts)||0)), backgroundColor: '#6b7280' },
+          { label: 'QF/SF',     data: top10.map(p => (Number(p.qf_pts)||0) + (Number(p.sf_pts)||0)), backgroundColor: '#9ca3af' },
+          { label: 'Final/W',   data: top10.map(p => (Number(p.f_pts)||0) + (Number(p.w_pts)||0)), backgroundColor: '#ff4d2d' },
           { label: 'Extras',    data: top10.map(p => Number(p.extras_pts) || 0), backgroundColor: '#f59e0b' },
         ],
       },
@@ -189,24 +167,99 @@
     });
   }
 
-  function buildHistogram(values, bucketCount) {
-    if (values.length === 0) return { labels: [], counts: [] };
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = Math.max(1, max - min);
-    const step = Math.ceil(range / bucketCount) || 1;
-    const counts = new Array(bucketCount).fill(0);
-    const labels = [];
-    for (let i = 0; i < bucketCount; i++) {
-      const lo = min + step * i;
-      const hi = lo + step - 1;
-      labels.push(`${lo}-${hi}`);
+  async function renderProgressionChart(sorted) {
+    const distCtx = document.getElementById('chart-distribution').getContext('2d');
+    if (state.charts.dist) state.charts.dist.destroy();
+
+    // Get top 5 participant IDs from current leaderboard
+    const top5 = sorted.slice(0, 5);
+    if (top5.length === 0) return;
+    const top5ids = top5.map(p => p.participant_id);
+
+    // Fetch history from Supabase
+    try {
+      const { data: history, error } = await db
+        .from('scores_history')
+        .select('*')
+        .in('participant_id', top5ids)
+        .order('snapshot_at');
+
+      if (error || !history || history.length === 0) {
+        // No history yet — show empty state
+        state.charts.dist = new Chart(distCtx, {
+          type: 'line',
+          data: { labels: ['Ingen data ennå'], datasets: [] },
+          options: { plugins: { legend: { display: false } } },
+        });
+        return;
+      }
+
+      // Group by participant
+      const byPid = {};
+      const allTimes = new Set();
+      for (const row of history) {
+        if (!byPid[row.participant_id]) byPid[row.participant_id] = {};
+        const timeLabel = new Date(row.snapshot_at).toLocaleDateString('nb-NO', { day: '2-digit', month: 'short' })
+          + ' ' + new Date(row.snapshot_at).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+        byPid[row.participant_id][row.snapshot_at] = row.total;
+        allTimes.add(row.snapshot_at);
+      }
+
+      // Sort timestamps
+      const sortedTimes = Array.from(allTimes).sort();
+      const labels = sortedTimes.map(t => {
+        const d = new Date(t);
+        return d.toLocaleDateString('nb-NO', { day: '2-digit', month: 'short' });
+      });
+
+      // Remove duplicate labels (keep time if same day)
+      const seen = {};
+      const uniqueLabels = labels.map((lbl, i) => {
+        if (seen[lbl]) {
+          const d = new Date(sortedTimes[i]);
+          return d.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+        }
+        seen[lbl] = true;
+        return lbl;
+      });
+
+      // Build datasets — one line per participant
+      const colors = ['#ff4d2d', '#0a0e1a', '#f59e0b', '#22c55e', '#6366f1'];
+      const datasets = top5.map((p, i) => {
+        const pid = p.participant_id;
+        const data = sortedTimes.map(t => byPid[pid] && byPid[pid][t] != null ? byPid[pid][t] : null);
+        return {
+          label: shortName(p.full_name),
+          data: data,
+          borderColor: colors[i % colors.length],
+          backgroundColor: colors[i % colors.length] + '20',
+          borderWidth: 2,
+          pointRadius: 3,
+          tension: 0.3,
+          spanGaps: true,
+        };
+      });
+
+      state.charts.dist = new Chart(distCtx, {
+        type: 'line',
+        data: { labels: uniqueLabels, datasets },
+        options: {
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 10 }, usePointStyle: true } },
+          },
+          scales: {
+            x: { ticks: { font: { family: 'JetBrains Mono', size: 10 } } },
+            y: {
+              beginAtZero: true,
+              ticks: { font: { family: 'JetBrains Mono', size: 10 } },
+              title: { display: true, text: 'Poeng', font: { size: 10 } },
+            },
+          },
+        },
+      });
+    } catch (err) {
+      console.error('Failed to load progression:', err);
     }
-    for (const v of values) {
-      const idx = Math.min(bucketCount - 1, Math.floor((v - min) / step));
-      counts[idx]++;
-    }
-    return { labels, counts };
   }
 
   function shortName(name) {
@@ -221,16 +274,16 @@
     const cells = [
       ['Gruppe', p.group_pts],
       ['3. plass', p.third_pts],
-      ['R32', p.R32_pts],
-      ['R16', p.R16_pts],
-      ['QF', p.QF_pts],
-      ['SF', p.SF_pts],
-      ['Finale', p.F_pts],
-      ['Vinner', p.W_pts],
+      ['R32', p.r32_pts],
+      ['R16', p.r16_pts],
+      ['QF', p.qf_pts],
+      ['SF', p.sf_pts],
+      ['Finale', p.f_pts],
+      ['Vinner', p.w_pts],
       ['Extras', p.extras_pts],
     ];
     document.getElementById('modal-content').innerHTML = `
-      <h3>${escapeHTML(p.name)}</h3>
+      <h3>${escapeHTML(p.full_name)}</h3>
       <div style="color:var(--muted); font-size:0.875rem; margin-bottom:1rem;">
         ${escapeHTML([p.company, p.department].filter(Boolean).join(' · '))}
       </div>
