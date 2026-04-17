@@ -28,6 +28,22 @@
 
   const GROUP_CODES = ['A','B','C','D','E','F','G','H','I','J','K','L'];
 
+  // FIFA team code → ISO 3166-1 alpha-2 (for flag-icons CSS)
+  const TEAM_ISO = {
+    MEX:'mx',KOR:'kr',RSA:'za',CZE:'cz',CAN:'ca',SUI:'ch',QAT:'qa',BIH:'ba',
+    BRA:'br',MAR:'ma',HAI:'ht',SCO:'gb-sct',USA:'us',AUS:'au',PAR:'py',TUR:'tr',
+    GER:'de',CUW:'cw',CIV:'ci',ECU:'ec',NED:'nl',JPN:'jp',SWE:'se',TUN:'tn',
+    BEL:'be',EGY:'eg',IRN:'ir',NZL:'nz',ESP:'es',KSA:'sa',CPV:'cv',URU:'uy',
+    FRA:'fr',SEN:'sn',IRQ:'iq',NOR:'no',ARG:'ar',AUT:'at',ALG:'dz',JOR:'jo',
+    POR:'pt',UZB:'uz',COL:'co',COD:'cd',ENG:'gb-eng',CRO:'hr',GHA:'gh',PAN:'pa',
+  };
+
+  function teamFlag(code) {
+    var iso = TEAM_ISO[code];
+    if (!iso) return '';
+    return '<span class="fi fi-' + iso + '" style="font-size:1.1em;"></span>';
+  }
+
   // R32 match structure (matches FIFA bracket)
   // For each R32 match, define which "slot" fills each side
   // Home slots: 1X = winner of group X, 2X = runner-up
@@ -210,7 +226,7 @@
       const items = teams.map((t, i) => `
         <li class="team-item" data-team="${t.team_code}">
           <span class="pos-badge">${i + 1}</span>
-          <span class="team-flag">${t.flag || '⚽'}</span>
+          <span class="team-flag">${teamFlag(t.team_code)}</span>
           <span class="team-name">${escapeHTML(t.name_no || t.name_en)}</span>
           <span class="drag-handle">⋮⋮</span>
         </li>
@@ -280,7 +296,7 @@
              data-team="${thirdCode}"
              onclick="toggleThird('${thirdCode}')">
           <span class="grp-letter">${g}</span>
-          <span class="team-flag" style="font-size:0.9rem;">${team ? (team.flag || '⚽') : '⚽'}</span>
+          <span class="team-flag" style="font-size:0.9rem;">${team ? teamFlag(thirdCode) : ''}</span>
           <span>${team ? escapeHTML(team.name_no || team.name_en) : '—'}</span>
         </div>
       `;
@@ -459,8 +475,8 @@
   function renderMatch(id, home, away, winner, round) {
     const homeTeam = state.teams[home];
     const awayTeam = state.teams[away];
-    const homeLabel = homeTeam ? `${homeTeam.flag || '⚽'} ${escapeHTML(homeTeam.name_no || homeTeam.name_en)}` : '<em>Venter…</em>';
-    const awayLabel = awayTeam ? `${awayTeam.flag || '⚽'} ${escapeHTML(awayTeam.name_no || awayTeam.name_en)}` : '<em>Venter…</em>';
+    const homeLabel = homeTeam ? `${teamFlag(home)} ${escapeHTML(homeTeam.name_no || homeTeam.name_en)}` : '<em>Venter…</em>';
+    const awayLabel = awayTeam ? `${teamFlag(away)} ${escapeHTML(awayTeam.name_no || awayTeam.name_en)}` : '<em>Venter…</em>';
     const homeClass = !home ? 'empty' : (winner === home ? 'winner' : '');
     const awayClass = !away ? 'empty' : (winner === away ? 'winner' : '');
     return `
