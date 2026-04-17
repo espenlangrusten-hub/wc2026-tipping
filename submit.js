@@ -191,7 +191,7 @@
         </div>
         <div class="two-col">
           <div class="field">
-            <label for="field-company">Arbeidsgiver <span class="req">*</span></label>
+            <label for="field-company">Arbeidssted <span class="req">*</span></label>
             <input type="text" id="field-company" placeholder="f.eks. JPMorgan" autocomplete="organization">
           </div>
           <div class="field">
@@ -388,32 +388,72 @@
   }
 
   function resolveR32Teams() {
-    // For each R32 slot, figure out which team goes there
     const bracket = {};
+    const usedThirds = new Set();
+
+    // Third-place slots with their allowed source groups
+    // Ordered by most constrained first to minimize conflicts
+    const thirdSlots = [
+      { id: 74,  allowed: 'ABCDF' },  // faces 1E
+      { id: 77,  allowed: 'CDFGH' },  // faces 1I
+      { id: 79,  allowed: 'CEFHI' },  // faces 1A
+      { id: 80,  allowed: 'EHIJK' },  // faces 1L
+      { id: 81,  allowed: 'BEFIJ' },  // faces 1D
+      { id: 82,  allowed: 'AEHIJ' },  // faces 1G
+      { id: 85,  allowed: 'EFGIJ' },  // faces 1B
+      { id: 87,  allowed: 'DEIJL' },  // faces 1K
+    ];
+
+    // Sort by number of matching available thirds (most constrained first)
+    thirdSlots.sort((a, b) => {
+      const aCount = state.prediction.thirds.filter(code => {
+        const t = state.teams[code];
+        return t && a.allowed.includes(t.group_code);
+      }).length;
+      const bCount = state.prediction.thirds.filter(code => {
+        const t = state.teams[code];
+        return t && b.allowed.includes(t.group_code);
+      }).length;
+      return aCount - bCount;
+    });
+
+    // Assign thirds without duplicates
+    const thirdAssignments = {};
+    for (const slot of thirdSlots) {
+      for (const code of state.prediction.thirds) {
+        if (usedThirds.has(code)) continue;
+        const team = state.teams[code];
+        if (team && slot.allowed.includes(team.group_code)) {
+          thirdAssignments[slot.id] = code;
+          usedThirds.add(code);
+          break;
+        }
+      }
+    }
+
+    // Build full bracket
     for (const m of R32_STRUCTURE) {
-      bracket[m.id] = {
-        home: resolveSlot(m.home_slot),
-        away: resolveSlot(m.away_slot),
-      };
+      let home, away;
+
+      if (m.home_slot.startsWith('T_')) {
+        home = thirdAssignments[m.id] || null;
+      } else {
+        const pos = parseInt(m.home_slot.charAt(0));
+        const group = m.home_slot.charAt(1);
+        home = state.prediction.groups[group] && state.prediction.groups[group][pos - 1];
+      }
+
+      if (m.away_slot.startsWith('T_')) {
+        away = thirdAssignments[m.id] || null;
+      } else {
+        const pos = parseInt(m.away_slot.charAt(0));
+        const group = m.away_slot.charAt(1);
+        away = state.prediction.groups[group] && state.prediction.groups[group][pos - 1];
+      }
+
+      bracket[m.id] = { home, away };
     }
     return bracket;
-  }
-
-  function resolveSlot(slot) {
-    if (slot.startsWith('T_')) {
-      // Third-place slot — depends on which groups' thirds qualify
-      // For the UI we just pick the first selected third from the allowed set
-      const parts = slot.split('_'); // ['T','E','FROM','ABCDF']
-      const allowed = parts[3].split('');
-      for (const code of state.prediction.thirds) {
-        const team = state.teams[code];
-        if (team && allowed.includes(team.group_code)) return code;
-      }
-      return null;
-    }
-    const pos = parseInt(slot.charAt(0));  // 1 or 2
-    const group = slot.charAt(1);          // A-L
-    return state.prediction.groups[group] && state.prediction.groups[group][pos - 1];
   }
 
   function renderMatch(id, home, away, winner, round) {
