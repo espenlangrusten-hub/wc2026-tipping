@@ -192,7 +192,7 @@
         <div class="two-col">
           <div class="field">
             <label for="field-company">Arbeidssted <span class="req">*</span></label>
-            <input type="text" id="field-company" placeholder="f.eks. JPMorgan" autocomplete="organization">
+            <input type="text" id="field-company" placeholder="f.eks. Oslo" autocomplete="organization">
           </div>
           <div class="field">
             <label for="field-department">Avdeling <span class="req">*</span></label>
