@@ -204,23 +204,92 @@ window.saveGroupResults = async function() {
 // QUESTIONS TAB
 // ════════════════════════════════════════════════
 function renderQuestionsTab(c) {
-  var rows = state.questions.map(function(q, i) {
+  var rows = state.questions.map(function(q) {
     return '<tr>' +
       '<td style="font-family:JetBrains Mono,monospace;">' + q.q_id + '</td>' +
       '<td><input type="text" data-qfield="question_no" data-qid="' + q.q_id + '" value="' + escapeHTML(q.question_no || '') + '" style="width:100%;"></td>' +
-      '<td><select data-qfield="answer_type" data-qid="' + q.q_id + '"><option value="text"' + (q.answer_type === 'text' ? ' selected' : '') + '>Tekst</option><option value="number"' + (q.answer_type === 'number' ? ' selected' : '') + '>Tall</option><option value="multi"' + (q.answer_type === 'multi' ? ' selected' : '') + '>Flervalg</option></select></td>' +
+      '<td><select data-qfield="answer_type" data-qid="' + q.q_id + '" onchange="toggleOptionsField(' + q.q_id + ')">' +
+        '<option value="text"' + (q.answer_type === 'text' ? ' selected' : '') + '>Tekst</option>' +
+        '<option value="number"' + (q.answer_type === 'number' ? ' selected' : '') + '>Tall</option>' +
+        '<option value="multi"' + (q.answer_type === 'multi' ? ' selected' : '') + '>Rullegardin</option>' +
+      '</select></td>' +
       '<td><input type="number" data-qfield="points" data-qid="' + q.q_id + '" value="' + q.points + '" style="width:60px;"></td>' +
-      '<td><select data-qfield="round" data-qid="' + q.q_id + '"><option value="GROUP"' + (q.round === 'GROUP' ? ' selected' : '') + '>GROUP</option><option value="R32"' + (q.round === 'R32' ? ' selected' : '') + '>R32</option><option value="R16"' + (q.round === 'R16' ? ' selected' : '') + '>R16</option><option value="QF"' + (q.round === 'QF' ? ' selected' : '') + '>QF</option><option value="SF"' + (q.round === 'SF' ? ' selected' : '') + '>SF</option><option value="F"' + (q.round === 'F' ? ' selected' : '') + '>F</option><option value="TOTAL"' + (q.round === 'TOTAL' ? ' selected' : '') + '>TOTAL</option></select></td>' +
+      '<td><select data-qfield="round" data-qid="' + q.q_id + '">' +
+        '<option value="GROUP"' + (q.round === 'GROUP' ? ' selected' : '') + '>GROUP</option>' +
+        '<option value="R32"' + (q.round === 'R32' ? ' selected' : '') + '>R32</option>' +
+        '<option value="R16"' + (q.round === 'R16' ? ' selected' : '') + '>R16</option>' +
+        '<option value="QF"' + (q.round === 'QF' ? ' selected' : '') + '>QF</option>' +
+        '<option value="SF"' + (q.round === 'SF' ? ' selected' : '') + '>SF</option>' +
+        '<option value="F"' + (q.round === 'F' ? ' selected' : '') + '>F</option>' +
+        '<option value="TOTAL"' + (q.round === 'TOTAL' ? ' selected' : '') + '>TOTAL</option>' +
+      '</select></td>' +
+      '<td><button class="btn btn-danger" style="padding:0.25rem 0.5rem;font-size:0.75rem;" onclick="deleteQuestion(' + q.q_id + ')">🗑</button></td>' +
+    '</tr>' +
+    '<tr data-options-row="' + q.q_id + '" style="' + (q.answer_type === 'multi' ? '' : 'display:none;') + '">' +
+      '<td></td>' +
+      '<td colspan="5"><label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.25rem;">Alternativer (ett per linje):</label>' +
+      '<textarea data-qfield="options_json" data-qid="' + q.q_id + '" rows="3" style="width:100%;padding:0.375rem 0.5rem;background:#141821;border:1px solid var(--line);border-radius:4px;color:var(--ink);font-family:inherit;font-size:0.875rem;" placeholder="Ordinær tid\nEkstra omganger\nStraffespark">' + escapeHTML(optionsJsonToLines(q.options_json)) + '</textarea></td>' +
     '</tr>';
   }).join('');
   c.innerHTML = '<div class="panel"><h3>Ekstraspørsmål</h3>' +
-    '<p class="panel-desc">Rediger spørsmålene her. For å legge til/slette spørsmål: bruk Supabase Table Editor → extra_questions.</p>' +
-    '<table class="admin-table"><thead><tr><th>ID</th><th>Spørsmål</th><th>Type</th><th>Poeng</th><th>Runde</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-    '<button class="btn btn-primary" style="margin-top:1rem;" onclick="saveQuestions()">Lagre endringer</button></div>';
+    '<p class="panel-desc">Rediger spørsmål, type (tekst, tall eller rullegardin), poeng og runde. For rullegardin: fyll inn alternativene under.</p>' +
+    '<div style="overflow-x:auto;"><table class="admin-table"><thead><tr><th>ID</th><th>Spørsmål</th><th>Type</th><th>Poeng</th><th>Runde</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div style="display:flex;gap:0.5rem;margin-top:1rem;">' +
+      '<button class="btn btn-primary" onclick="saveQuestions()">Lagre endringer</button>' +
+      '<button class="btn btn-ghost" onclick="addNewQuestion()">+ Legg til nytt spørsmål</button>' +
+    '</div></div>';
 }
 
+function optionsJsonToLines(s) {
+  if (!s) return '';
+  try {
+    var arr = JSON.parse(s);
+    if (Array.isArray(arr)) return arr.join('\n');
+  } catch (e) {}
+  return '';
+}
+function linesToOptionsJson(s) {
+  if (!s) return '';
+  var arr = s.split('\n').map(function(x) { return x.trim(); }).filter(Boolean);
+  if (arr.length === 0) return '';
+  return JSON.stringify(arr);
+}
+
+window.toggleOptionsField = function(qid) {
+  var type = document.querySelector('[data-qfield="answer_type"][data-qid="' + qid + '"]').value;
+  var row = document.querySelector('[data-options-row="' + qid + '"]');
+  if (row) row.style.display = type === 'multi' ? '' : 'none';
+};
+
+window.deleteQuestion = async function(qid) {
+  if (!confirm('Slette spørsmål #' + qid + '?')) return;
+  try {
+    await db.from('extra_questions').delete().eq('q_id', qid);
+    state.questions = await API.getQuestions();
+    renderTabContent();
+    toast('Spørsmål slettet', 'ok');
+  } catch (err) { toast('Feil: ' + err.message, 'err'); }
+};
+
+window.addNewQuestion = async function() {
+  var newId = Math.max.apply(null, state.questions.map(function(q) { return q.q_id; }).concat([0])) + 1;
+  try {
+    await db.from('extra_questions').insert({
+      q_id: newId,
+      sort_order: newId,
+      question_no: 'Nytt spørsmål',
+      answer_type: 'text',
+      points: 2,
+      round: 'TOTAL',
+      options_json: '',
+    });
+    state.questions = await API.getQuestions();
+    renderTabContent();
+    toast('Nytt spørsmål lagt til', 'ok');
+  } catch (err) { toast('Feil: ' + err.message, 'err'); }
+};
+
 window.saveQuestions = async function() {
-  var updates = [];
   var qids = {};
   document.querySelectorAll('[data-qfield]').forEach(function(el) {
     var qid = el.dataset.qid;
@@ -235,6 +304,7 @@ window.saveQuestions = async function() {
         answer_type: q.answer_type,
         points: parseInt(q.points),
         round: q.round,
+        options_json: q.answer_type === 'multi' ? linesToOptionsJson(q.options_json || '') : '',
       }).eq('q_id', parseInt(qid));
     } catch (err) { toast('Feil Q' + qid + ': ' + err.message, 'err'); return; }
   }
@@ -334,17 +404,71 @@ function renderSettingsTab(c) {
     '</div>' +
     '<div style="margin-bottom:1rem;"><label style="display:block;font-size:0.8125rem;font-weight:600;margin-bottom:0.375rem;">Frist (ISO UTC)</label><input type="text" id="set-deadline" placeholder="2026-06-11T15:00:00Z"></div>' +
     '<div style="margin-bottom:1rem;"><label style="display:block;font-size:0.8125rem;font-weight:600;margin-bottom:0.375rem;">Gjeldende runde</label><select id="set-round"><option>PRE</option><option>GROUP</option><option>R32</option><option>R16</option><option>QF</option><option>SF</option><option>F</option><option>COMPLETE</option></select></div>' +
-    '<button class="btn btn-primary" onclick="saveSettings()">Lagre</button></div>';
+    '<button class="btn btn-primary" onclick="saveSettings()">Lagre tidspunkt-innstillinger</button>' +
+  '</div>' +
 
-  // Load current model
+  // Company & Department configuration panel
+  '<div class="panel"><h3>Registreringsfelter</h3>' +
+    '<p class="panel-desc">Velg om deltakerne skal skrive fritt eller velge fra en rullegardinliste.</p>' +
+    '<div style="margin-bottom:1.5rem;">' +
+      '<label style="display:block;font-size:0.8125rem;font-weight:600;margin-bottom:0.375rem;">Arbeidssted</label>' +
+      '<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;" id="company-mode-toggle"></div>' +
+      '<textarea id="company-options" rows="5" placeholder="Et alternativ per linje, f.eks.:\nOslo\nBergen\nStavanger" style="width:100%;padding:0.5rem;background:#141821;border:1.5px solid var(--line);border-radius:6px;color:var(--ink);font-family:inherit;font-size:0.9375rem;"></textarea>' +
+    '</div>' +
+    '<div style="margin-bottom:1rem;">' +
+      '<label style="display:block;font-size:0.8125rem;font-weight:600;margin-bottom:0.375rem;">Avdeling</label>' +
+      '<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;" id="dept-mode-toggle"></div>' +
+      '<textarea id="dept-options" rows="5" placeholder="Et alternativ per linje, f.eks.:\nMarkedsføring\nSalg\nIT" style="width:100%;padding:0.5rem;background:#141821;border:1.5px solid var(--line);border-radius:6px;color:var(--ink);font-family:inherit;font-size:0.9375rem;"></textarea>' +
+    '</div>' +
+    '<button class="btn btn-primary" onclick="saveFieldConfig()">Lagre feltkonfigurasjon</button>' +
+  '</div>';
+
+  // Load current config
   (async function() {
     var cfg = await API.getConfig();
     var model = cfg.scoring_model || 'a';
     renderModelToggle(model);
     if (cfg.deadline_iso) document.getElementById('set-deadline').value = cfg.deadline_iso;
     if (cfg.current_round) document.getElementById('set-round').value = cfg.current_round;
+    renderFieldModeToggle('company', cfg.company_mode || 'free');
+    renderFieldModeToggle('dept', cfg.department_mode || 'free');
+    document.getElementById('company-options').value = cfg.company_options || '';
+    document.getElementById('dept-options').value = cfg.department_options || '';
   })();
 }
+
+function renderFieldModeToggle(prefix, current) {
+  var el = document.getElementById(prefix + '-mode-toggle');
+  var modes = [
+    { id: 'free', label: 'Fritekst' },
+    { id: 'dropdown', label: 'Rullegardin' },
+  ];
+  el.innerHTML = modes.map(function(m) {
+    return '<button class="btn ' + (m.id === current ? 'btn-primary' : 'btn-ghost') + '" style="flex:1;" onclick="setFieldMode(\'' + prefix + '\',\'' + m.id + '\')">' + m.label + '</button>';
+  }).join('');
+  // Toggle textarea visibility
+  var textarea = document.getElementById(prefix + '-options');
+  if (textarea) textarea.style.display = current === 'dropdown' ? '' : 'none';
+}
+
+window.setFieldMode = function(prefix, mode) {
+  renderFieldModeToggle(prefix, mode);
+};
+
+window.saveFieldConfig = async function() {
+  try {
+    // Determine mode from currently-active button
+    var cMode = document.querySelector('#company-mode-toggle .btn-primary').textContent === 'Rullegardin' ? 'dropdown' : 'free';
+    var dMode = document.querySelector('#dept-mode-toggle .btn-primary').textContent === 'Rullegardin' ? 'dropdown' : 'free';
+    var cOpts = document.getElementById('company-options').value;
+    var dOpts = document.getElementById('dept-options').value;
+    await API.adminUpdateSetting(state.password, 'company_mode', cMode);
+    await API.adminUpdateSetting(state.password, 'department_mode', dMode);
+    await API.adminUpdateSetting(state.password, 'company_options', cOpts);
+    await API.adminUpdateSetting(state.password, 'department_options', dOpts);
+    toast('Feltkonfigurasjon lagret', 'ok');
+  } catch (err) { toast('Feil: ' + err.message, 'err'); }
+};
 
 function renderModelToggle(current) {
   var el = document.getElementById('model-toggle');
