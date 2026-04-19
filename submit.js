@@ -154,19 +154,35 @@
     // Attach personal field listeners
     ['full_name', 'email', 'company', 'department'].forEach(f => {
       const el = document.getElementById('field-' + f);
-      if (el) el.addEventListener('input', () => {
-        state.prediction.personal[f] = el.value.trim();
-        updateProgress();
-      });
+      if (el) {
+        // Restore value
+        if (state.prediction.personal[f]) el.value = state.prediction.personal[f];
+        el.addEventListener('input', () => {
+          state.prediction.personal[f] = el.value.trim();
+          updateProgress();
+        });
+        el.addEventListener('change', () => {
+          state.prediction.personal[f] = el.value.trim();
+          updateProgress();
+        });
+      }
     });
 
     // Extra question listeners
     for (const q of state.questions) {
       const el = document.getElementById('q-' + q.q_id);
-      if (el) el.addEventListener('input', () => {
-        state.prediction.extras[q.q_id] = el.value;
-        updateProgress();
-      });
+      if (el) {
+        // Restore value
+        if (state.prediction.extras[q.q_id] != null) el.value = state.prediction.extras[q.q_id];
+        el.addEventListener('input', () => {
+          state.prediction.extras[q.q_id] = el.value;
+          updateProgress();
+        });
+        el.addEventListener('change', () => {
+          state.prediction.extras[q.q_id] = el.value;
+          updateProgress();
+        });
+      }
     }
 
     updateProgress();
@@ -199,6 +215,18 @@
 
   // ── Section 1: Personal info ─────────────────────────────────
   function renderPersonalSection() {
+    const cfg = state.config || {};
+    const companyMode = cfg.company_mode || 'free';
+    const deptMode = cfg.department_mode || 'free';
+
+    function fieldInput(id, mode, options, placeholder) {
+      if (mode === 'dropdown' && options) {
+        const opts = options.split('\n').map(s => s.trim()).filter(Boolean);
+        return `<select id="field-${id}"><option value="">Velg…</option>${opts.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('')}</select>`;
+      }
+      return `<input type="text" id="field-${id}" placeholder="${placeholder}">`;
+    }
+
     return `
       <section class="section" id="sec-personal">
         <div class="section-num">01 · Deltaker</div>
@@ -215,11 +243,11 @@
         <div class="two-col">
           <div class="field">
             <label for="field-company">Arbeidssted <span class="req">*</span></label>
-            <input type="text" id="field-company" placeholder="f.eks. Oslo" autocomplete="organization">
+            ${fieldInput('company', companyMode, cfg.company_options, 'f.eks. Oslo')}
           </div>
           <div class="field">
             <label for="field-department">Avdeling <span class="req">*</span></label>
-            <input type="text" id="field-department" placeholder="f.eks. Equity Research">
+            ${fieldInput('department', deptMode, cfg.department_options, 'f.eks. Equity Research')}
           </div>
         </div>
       </section>
@@ -630,9 +658,15 @@
       let input;
       if (q.answer_type === 'number') {
         input = `<input type="number" id="q-${q.q_id}" min="0">`;
-      } else if (q.answer_type === 'multi' && q.options) {
-        const opts = q.options.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('');
-        input = `<select id="q-${q.q_id}"><option value="">Velg…</option>${opts}</select>`;
+      } else if (q.answer_type === 'multi') {
+        let opts = [];
+        if (q.options_json) {
+          try { opts = JSON.parse(q.options_json); } catch(_) { opts = []; }
+        } else if (q.options) {
+          opts = q.options;
+        }
+        const optsHtml = opts.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('');
+        input = `<select id="q-${q.q_id}"><option value="">Velg…</option>${optsHtml}</select>`;
       } else {
         input = `<input type="text" id="q-${q.q_id}">`;
       }
@@ -651,8 +685,8 @@
     return `
       <section class="section">
         <div class="section-num">05 · Ekstraspørsmål</div>
-        <h2 class="section-title">13 bonus-spørsmål</h2>
-        <p class="section-desc">Totalt 37 ekstrapoeng å hente. Svar på alle før du leverer.</p>
+        <h2 class="section-title">Bonus-spørsmål</h2>
+        <p class="section-desc">Ekstrapoeng å hente. Svar på alle før du leverer.</p>
         ${questions}
       </section>
     `;
@@ -666,9 +700,14 @@
         <div class="completion-text">
           <span id="completion-status">Fyller ut…</span>
         </div>
-        <button type="button" class="btn-submit" id="btn-submit" disabled onclick="submitForm()">
-          Lever
-        </button>
+        <div style="display:flex; gap:0.5rem;">
+          <button type="button" class="btn-submit" style="background:transparent; color:var(--accent); border:1.5px solid var(--accent);" onclick="autoFillRest()">
+            🎲 Fyll ut resten
+          </button>
+          <button type="button" class="btn-submit" id="btn-submit" disabled onclick="submitForm()">
+            Lever
+          </button>
+        </div>
       </div>
     `;
   }
@@ -724,7 +763,97 @@
     }
   }
 
-  // ── Submit ───────────────────────────────────────────────────
+  // ── Auto-fill remaining ──────────────────────────────────────
+  window.autoFillRest = function() {
+    if (!confirm('Fylle ut resten tilfeldig? Dette overskriver ikke det du allerede har fylt ut.')) return;
+    const isModelB = state.config.scoring_model === 'b';
+    const s = state.prediction;
+
+    if (isModelB) {
+      // Fill random scores (0-3 for home, 0-3 for away)
+      const matches = (state.allMatches || []).filter(m => m.home_team && m.away_team);
+      for (const m of matches) {
+        if (!s.matchScores[m.match_id]) {
+          s.matchScores[m.match_id] = {
+            home: Math.floor(Math.random() * 4),
+            away: Math.floor(Math.random() * 4),
+          };
+        }
+      }
+    } else {
+      // Model A: ensure groups are valid (already init'd), pick random thirds, click random winners
+      // Group order stays as-is unless user has reordered
+      // Random thirds if not already full
+      if (s.thirds.length < 8) {
+        // Pick random third-placed teams from each group (default 3rd in ranking)
+        const candidates = [];
+        for (const g of GROUP_CODES) {
+          if (s.groups[g] && s.groups[g][2]) candidates.push(s.groups[g][2]);
+        }
+        // Shuffle and take 8
+        for (let i = candidates.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
+        s.thirds = candidates.slice(0, 8);
+      }
+      // Bracket: pick random winners from each available matchup
+      const r32Teams = resolveR32Teams();
+      for (const m of R32_STRUCTURE) {
+        if (!s.knockout.R32[m.id]) {
+          const pair = r32Teams[m.id];
+          if (pair && pair.home && pair.away) {
+            s.knockout.R32[m.id] = Math.random() < 0.5 ? pair.home : pair.away;
+          }
+        }
+      }
+      for (const m of R16_STRUCTURE) {
+        if (!s.knockout.R16[m.id]) {
+          const h = s.knockout.R32[m.home_from], a = s.knockout.R32[m.away_from];
+          if (h && a) s.knockout.R16[m.id] = Math.random() < 0.5 ? h : a;
+        }
+      }
+      for (const m of QF_STRUCTURE) {
+        if (!s.knockout.QF[m.id]) {
+          const h = s.knockout.R16[m.home_from], a = s.knockout.R16[m.away_from];
+          if (h && a) s.knockout.QF[m.id] = Math.random() < 0.5 ? h : a;
+        }
+      }
+      for (const m of SF_STRUCTURE) {
+        if (!s.knockout.SF[m.id]) {
+          const h = s.knockout.QF[m.home_from], a = s.knockout.QF[m.away_from];
+          if (h && a) s.knockout.SF[m.id] = Math.random() < 0.5 ? h : a;
+        }
+      }
+      if (!s.knockout.F[FINAL_STRUCTURE.id]) {
+        const h = s.knockout.SF[FINAL_STRUCTURE.home_from], a = s.knockout.SF[FINAL_STRUCTURE.away_from];
+        if (h && a) {
+          s.knockout.F[FINAL_STRUCTURE.id] = Math.random() < 0.5 ? h : a;
+          s.knockout.W = s.knockout.F[FINAL_STRUCTURE.id];
+        }
+      }
+    }
+
+    // Fill extras with random choices
+    for (const q of state.questions) {
+      if (s.extras[q.q_id] == null || s.extras[q.q_id] === '') {
+        if (q.answer_type === 'number') {
+          s.extras[q.q_id] = Math.floor(Math.random() * 10);
+        } else if (q.answer_type === 'multi') {
+          let opts = [];
+          if (q.options_json) { try { opts = JSON.parse(q.options_json); } catch(_) {} }
+          if (opts.length) s.extras[q.q_id] = opts[Math.floor(Math.random() * opts.length)];
+          else s.extras[q.q_id] = 'Ingen formening';
+        } else {
+          s.extras[q.q_id] = 'Ingen formening';
+        }
+      }
+    }
+
+    // Re-render everything
+    render();
+  };
+
   window.submitForm = async function() {
     const btn = document.getElementById('btn-submit');
     btn.disabled = true;
