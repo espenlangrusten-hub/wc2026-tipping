@@ -695,15 +695,15 @@
 
   // ── Submit bar ───────────────────────────────────────────────
   function renderSubmitBar() {
+    const s = state.prediction.personal;
+    const personalDone = !!(s.full_name && s.email && s.company && s.department);
     return `
       <div class="submit-bar">
         <div class="completion-text">
           <span id="completion-status">Fyller ut…</span>
         </div>
-        <div style="display:flex; gap:0.5rem;">
-          <button type="button" class="btn-submit" style="background:transparent; color:var(--accent); border:1.5px solid var(--accent);" onclick="autoFillRest()">
-            🎲 Fyll ut resten
-          </button>
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+          ${personalDone ? '<button type="button" id="btn-autofill" class="btn-submit" style="background:transparent; color:var(--accent); border:1.5px solid var(--accent); font-size:0.875rem; padding:0.625rem 1rem;" onclick="autoFillRest()">🎲 Fyll ut resten</button>' : '<button type="button" id="btn-autofill" class="btn-submit" style="display:none; background:transparent; color:var(--accent); border:1.5px solid var(--accent); font-size:0.875rem; padding:0.625rem 1rem;" onclick="autoFillRest()">🎲 Fyll ut resten</button>'}
           <button type="button" class="btn-submit" id="btn-submit" disabled onclick="submitForm()">
             Lever
           </button>
@@ -719,17 +719,23 @@
     const btn = document.getElementById('btn-submit');
     const prog = document.getElementById('progress');
 
-    // 5 section dots
+    // Progress dots
     if (prog) {
-      prog.innerHTML = [1,2,3,4,5].map(i => {
-        const cls = status.sections[i-1] === 'complete' ? 'complete'
-                  : status.sections[i-1] === 'active' ? 'active' : '';
+      prog.innerHTML = Array.from({length: status.total}, (_, i) => {
+        const cls = status.sections[i] === 'complete' ? 'complete'
+                  : status.sections[i] === 'active' ? 'active' : '';
         return `<div class="progress-dot ${cls}"></div>`;
       }).join('');
     }
 
     if (counter) counter.innerHTML = `<span class="count">${status.complete}</span> / ${status.total} fullført`;
     if (btn) btn.disabled = !status.valid;
+
+    // Show/hide auto-fill button based on personal info
+    const s = state.prediction.personal;
+    const personalDone = !!(s.full_name && s.email && s.company && s.department);
+    const autoBtn = document.getElementById('btn-autofill');
+    if (autoBtn) autoBtn.style.display = personalDone ? '' : 'none';
   }
 
   function checkCompletion() {
