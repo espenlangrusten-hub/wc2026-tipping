@@ -400,33 +400,244 @@ header { border-bottom: 2px solid var(--line); padding-bottom: 1.5rem; margin-bo
   z-index: 10;
   border: 2px solid rgba(212,168,67,0.15);
 }
+
+/* ═══ INTRO ANIMATION ═══ */
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #050709;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.intro-overlay.done {
+  pointer-events: none;
+  animation: introFadeOut 0.6s ease 0.2s both;
+}
+
+/* Scan lines */
+.intro-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(212,168,67,0.015) 2px,
+    rgba(212,168,67,0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Light sweep */
+.intro-sweep {
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent 0%, rgba(212,168,67,0.06) 45%, rgba(212,168,67,0.15) 50%, rgba(212,168,67,0.06) 55%, transparent 100%);
+  animation: sweep 1.2s ease 0.3s both;
+  z-index: 2;
+}
+@keyframes sweep {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Center stage */
+.intro-stage {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+}
+
+.intro-year {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: clamp(5rem, 20vw, 12rem);
+  line-height: 0.85;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(212,168,67,0.3);
+  letter-spacing: -0.02em;
+  opacity: 0;
+  animation: introYear 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+}
+@keyframes introYear {
+  0% { opacity: 0; transform: scale(1.5); filter: blur(10px); }
+  100% { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+.intro-wc {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.5rem, 5vw, 3rem);
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: #f0ece4;
+  opacity: 0;
+  animation: introSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.0s both;
+}
+@keyframes introSlideUp {
+  0% { opacity: 0; transform: translateY(30px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.intro-line {
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #d4a843, transparent);
+  margin: 1.25rem auto;
+  animation: introLine 0.8s ease 1.3s both;
+}
+@keyframes introLine {
+  0% { width: 0; }
+  100% { width: min(300px, 60vw); }
+}
+
+.intro-hosts-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(212,168,67,0.7);
+  opacity: 0;
+  animation: introSlideUp 0.5s ease 1.6s both;
+}
+
+.intro-flags-row {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.intro-flags-row .fi {
+  font-size: 2rem;
+  opacity: 0;
+}
+.intro-flags-row .fi:nth-child(1) { animation: introFlag 0.4s ease 1.9s both; }
+.intro-flags-row .fi:nth-child(2) { animation: introFlag 0.4s ease 2.1s both; }
+.intro-flags-row .fi:nth-child(3) { animation: introFlag 0.4s ease 2.3s both; }
+@keyframes introFlag {
+  0% { opacity: 0; transform: scale(0.3) rotate(-15deg); }
+  60% { transform: scale(1.15) rotate(3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+/* Pulse ring behind year */
+.intro-pulse {
+  position: absolute;
+  width: clamp(200px, 50vw, 400px);
+  height: clamp(200px, 50vw, 400px);
+  border: 1px solid rgba(212,168,67,0.1);
+  border-radius: 50%;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  animation: introPulse 2s ease 0.6s both;
+}
+.intro-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -40px;
+  border: 1px solid rgba(212,168,67,0.05);
+  border-radius: 50%;
+  animation: introPulse2 2.5s ease 0.8s both;
+}
+@keyframes introPulse {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1.2); }
+}
+@keyframes introPulse2 {
+  0% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.5; }
+  100% { opacity: 0.1; transform: scale(1.3); }
+}
+
+@keyframes introFadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+/* Hide hero content initially, reveal after intro */
+.hero-content > * {
+  animation: none !important;
+  opacity: 0;
+}
+.hero-content.revealed > * {
+  animation: fadeDown 0.6s ease both !important;
+}
+.hero-content.revealed > :nth-child(1) { animation-delay: 0s !important; }
+.hero-content.revealed > :nth-child(2) { animation-delay: 0.1s !important; }
+.hero-content.revealed > :nth-child(3) { animation-delay: 0.2s !important; }
+.hero-content.revealed > :nth-child(4) { animation-delay: 0.3s !important; }
+.hero-content.revealed > :nth-child(5) { animation-delay: 0.4s !important; }
+.hero-content.revealed > :nth-child(6) { animation-delay: 0.5s !important; }
+.hero-content.revealed > :nth-child(7) { animation-delay: 0.6s !important; }
 </style>
 </head>
 <body>
 <div class="corner-logo"></div>
 
+<!-- ═══ INTRO ═══ -->
+<div class="intro-overlay" id="intro">
+  <div class="intro-sweep"></div>
+  <div class="intro-pulse"></div>
+  <div class="intro-stage">
+    <div class="intro-year">26</div>
+    <div class="intro-wc">World Cup</div>
+    <div class="intro-line"></div>
+    <div class="intro-hosts-text">Canada · Mexico · USA</div>
+    <div class="intro-flags-row">
+      <span class="fi fi-ca"></span>
+      <span class="fi fi-mx"></span>
+      <span class="fi fi-us"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// Dismiss intro after animation completes, or on click/tap
+var introEl = document.getElementById('intro');
+function dismissIntro() {
+  if (introEl.classList.contains('done')) return;
+  introEl.classList.add('done');
+  setTimeout(function() {
+    introEl.style.display = 'none';
+    document.querySelector('.hero-content').classList.add('revealed');
+  }, 800);
+}
+// Auto-dismiss after 3.5s
+setTimeout(dismissIntro, 3500);
+// Or click to skip
+introEl.addEventListener('click', dismissIntro);
+</script>
+
 <!-- ═══ HERO ═══ -->
 <section class="hero">
   <div class="hero-circle"></div>
   <div class="hero-content">
-    <div class="hero-badge" style="animation: fadeDown 0.8s ease">⚽ Tippekonkurranse</div>
-    <h1 class="hero-title" style="animation: fadeDown 0.8s ease 0.1s both">
+    <div class="hero-badge">⚽ Tippekonkurranse</div>
+    <h1 class="hero-title">
       World Cup
       <span class="year">Canada · Mexico · USA · 2026</span>
     </h1>
-    <p class="hero-sub" style="animation: fadeDown 0.8s ease 0.2s both">48 lag · 104 kamper · Hvem tar trofeet?</p>
-    <div class="hero-line" style="animation: fadeDown 0.8s ease 0.3s both"></div>
-    <div class="hero-stats" style="animation: fadeDown 0.8s ease 0.4s both">
+    <p class="hero-sub">48 lag · 104 kamper · Hvem tar trofeet?</p>
+    <div class="hero-line"></div>
+    <div class="hero-stats">
       <div><div class="hero-stat-num">48</div><div class="hero-stat-label">Lag</div></div>
       <div><div class="hero-stat-num">12</div><div class="hero-stat-label">Grupper</div></div>
       <div><div class="hero-stat-num">317</div><div class="hero-stat-label">Maks poeng</div></div>
     </div>
-    <div class="hero-cta" style="animation: fadeDown 0.8s ease 0.5s both">
+    <div class="hero-cta">
       <button class="btn-hero" onclick="document.getElementById('app').scrollIntoView({behavior:'smooth'})">
         Start tippingen →
       </button>
     </div>
-    <div class="hero-flags" style="animation: fadeDown 0.8s ease 0.6s both">
+    <div class="hero-flags">
       <span class="fi fi-ca"></span>
       <span class="fi fi-mx"></span>
       <span class="fi fi-us"></span>
