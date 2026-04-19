@@ -47,9 +47,6 @@ body {
   padding: 3rem 1.5rem;
   overflow: hidden;
   background: #080a10;
-  background-image: url('hero-bg.jpg');
-  background-size: cover;
-  background-position: center;
 }
 .hero::before {
   content: '';
@@ -387,9 +384,26 @@ header { border-bottom: 2px solid var(--line); padding-bottom: 1.5rem; margin-bo
   to { opacity: 1; transform: translateY(0); }
 }
 .hidden { display: none !important; }
+
+.corner-logo {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 70px;
+  height: 70px;
+  background-image: url('hero-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  border-radius: 50%;
+  opacity: 0.2;
+  pointer-events: none;
+  z-index: 10;
+  border: 2px solid rgba(212,168,67,0.15);
+}
 </style>
 </head>
 <body>
+<div class="corner-logo"></div>
 
 <!-- ═══ HERO ═══ -->
 <section class="hero">
